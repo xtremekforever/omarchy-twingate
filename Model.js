@@ -50,7 +50,8 @@ function parseResources(raw) {
 }
 
 // `twingate account list` prints a tab-separated table (EMAIL, NETWORK,
-// NETWORK URL), or nothing at all when no account has been added yet.
+// NETWORK URL, and an unlabelled `*` for the current account), or nothing at
+// all when no account has been added yet.
 function parseAccounts(raw) {
   var text = String(raw || "").trim()
   if (text === "") return []
@@ -71,7 +72,12 @@ function parseAccounts(raw) {
     if (line.trim() === "" || line.indexOf("\t") === -1) continue
     var cols = splitTabLine(line)
     if (cols[0] === "") continue
-    accounts.push({ email: cols[0] || "", network: cols[1] || "", networkUrl: cols[2] || "" })
+    accounts.push({
+      email: cols[0] || "",
+      network: cols[1] || "",
+      networkUrl: cols[2] || "",
+      current: (cols[3] || "") === "*"
+    })
   }
   return accounts
 }

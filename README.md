@@ -23,9 +23,11 @@ AUR package.
 - Click the icon to open the panel.
 - The switch in the panel header connects or disconnects Twingate.
 - Right-click the bar icon to toggle without opening the panel.
-- The **ACCOUNT** section shows your logged-in account (email and network)
-  with a log-out button, and an **Add account** row to log in — it opens your
-  browser to finish authentication after you type your network name.
+- The **ACCOUNT** section shows your logged-in accounts (email and network),
+  with the current account in bold and labelled **Current**. Click another
+  account to switch to it, use its log-out button to remove it, or use the
+  **Add account** row to log in — it opens your browser to finish
+  authentication after you type your network name.
 - The **RESOURCES** section lists your authorized resources while connected,
   with a button to copy each address to the clipboard.
 
@@ -34,7 +36,7 @@ AUR package.
 Inside the panel:
 
 - `j` / `k` or arrows: move cursor
-- `enter` / `space`: activate current row (toggle, log out, copy address)
+- `enter` / `space`: activate current row (toggle, switch account, copy address)
 - `t`: toggle Twingate
 - `r`: refresh status
 - `l`: open the login prompt
@@ -66,9 +68,10 @@ The plugin runs `twingate status`, `twingate resources`, and `twingate
 account list` as your own user. Connecting and disconnecting run `twingate
 connect` / `twingate disconnect` via `pkexec`, matching what the CLI itself
 requires. Logging in runs `twingate account add` (which opens your browser
-for authentication); logging out runs `twingate account logout` for the
-selected account. None of this reads, stores, or transmits your Twingate
-credentials — all authentication is handled by the Twingate client itself.
+for authentication); switching runs `twingate account switch`, and logging
+out runs `twingate account logout` for the selected account. None of this
+reads, stores, or transmits your Twingate credentials — all authentication is
+handled by the Twingate client itself.
 
 Every one of those commands is spawned behind `head -c 65536`, so the shell
 can never read more than 64 KiB back from any single invocation: once the

@@ -113,7 +113,10 @@ Panel {
   function activateCursor() {
     ensureCursor()
     if (focusSection === "header") twingate.toggle()
-    else if (focusSection === "accounts") { var a = selectedAccount(); if (a) twingate.logout(a.email) }
+    else if (focusSection === "accounts") {
+      var a = selectedAccount()
+      if (a && !a.current && !twingate.busy) twingate.switchAccount(a)
+    }
     else if (focusSection === "login") root.openLoginPrompt()
     else if (focusSection === "resources") { var r = selectedResource(); if (r) twingate.copyToClipboard(r.address) }
   }
@@ -531,6 +534,7 @@ Panel {
     property var account: null
     property int rowIndex: 0
     readonly property bool loggingOut: account && twingate.loggingOutEmail === String(account.email || "")
+    readonly property bool current: account && account.current === true
 
     hasCursor: root.cursorActive && root.focusSection === "accounts" && root.accountIndex === rowIndex
     foreground: root.foreground
@@ -542,8 +546,9 @@ Panel {
     MouseArea {
       anchors.fill: parent
       hoverEnabled: true
-      cursorShape: Qt.ArrowCursor
+      cursorShape: !accountRow.current && !twingate.busy ? Qt.PointingHandCursor : Qt.ArrowCursor
       onEntered: root.setAccountCursor(accountRow.rowIndex)
+      onClicked: if (!accountRow.current && !twingate.busy) twingate.switchAccount(accountRow.account)
     }
 
     RowLayout {
@@ -573,6 +578,7 @@ Panel {
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
+          font.bold: accountRow.current
           elide: Text.ElideRight
           textFormat: Text.PlainText
         }
@@ -586,6 +592,16 @@ Panel {
           elide: Text.ElideRight
           textFormat: Text.PlainText
         }
+      }
+
+      Text {
+        visible: accountRow.current
+        text: "Current"
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        Layout.alignment: Qt.AlignVCenter
       }
 
       PanelActionButton {

@@ -5,7 +5,8 @@ import qs.Commons
 import "Model.js" as Model
 
 // Polls `twingate status`, `twingate resources`, and `twingate account list`,
-// and drives connection, login, and logout via the `twingate` CLI.
+// and drives connection, login, account switching, and logout via the
+// `twingate` CLI.
 Item {
   id: root
 
@@ -30,7 +31,7 @@ Item {
 
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 15, 5, 300)
   readonly property bool busy: whichProcess.running || statusProcess.running || resourcesProcess.running
-    || accountsProcess.running || actionProcess.running || loginProcess.running || logoutProcess.running
+    || accountsProcess.running || actionProcess.running || loginProcess.running || switchProcess.running || logoutProcess.running
 
   property string _statusOutput: ""
   property string _resourcesOutput: ""
@@ -38,6 +39,7 @@ Item {
   property string _actionOutput: ""
   property string _loginOutput: ""
   property bool _loginUrlOpened: false
+  property string _switchOutput: ""
   property string _logoutOutput: ""
 
   // Hard ceiling on how much a single command may hand back.
@@ -128,7 +130,7 @@ Item {
     }
     if (!accountsProcess.running) {
       _accountsOutput = ""
-      accountsProcess.command = boundedQuiet(["twingate", "account", "list"])
+      accountsProcess.command = boundedQuiet(["twingate", "account", "list", "--disable-colors"])
       accountsProcess.running = true
       launched = true
     }
@@ -194,6 +196,26 @@ Item {
     loggingOutEmail = id
     logoutProcess.command = boundedMerged(["twingate", "account", "logout", id])
     logoutProcess.running = true
+  }
+
+  function accountIdentifier(account) {
+    if (!account) return ""
+    var email = String(account.email || "").trim()
+    if (email === "") return ""
+    var networkUrl = String(account.networkUrl || "").trim()
+    var hostname = networkUrl.split("://").pop().split("/")[0]
+    var tenantSlug = hostname.split(".")[0]
+    return tenantSlug === "" ? email : email + ":" + tenantSlug
+  }
+
+  function switchAccount(account) {
+    if (!installed || !account || account.current === true || busy) return
+    var id = accountIdentifier(account)
+    if (id === "") return
+    _switchOutput = ""
+    lastError = ""
+    switchProcess.command = boundedMerged(["pkexec", "twingate", "account", "switch", id])
+    switchProcess.running = true
   }
 
   function openAuthUrlFrom(text) {
@@ -359,6 +381,33 @@ Item {
         root.actionStatus = root.lastError
         actionStatusTimer.restart()
       } else if (!opened) {
+        root.lastError = ""
+        root.actionStatus = ""
+      }
+      delayedRefresh.restart()
+    }
+  }
+
+  // The confirmation prompt goes over stdin — `twingate account switch` has
+  // no non-interactive "yes" flag.
+  Process {
+    id: switchProcess
+    running: false
+    command: []
+    stdinEnabled: true
+    stdout: SplitParser {
+      onRead: function(line) {
+        root._switchOutput = root.appendBounded(root._switchOutput, line + "\n")
+        if (root._switchOutput.length >= root._maxOutputBytes) switchProcess.running = false
+      }
+    }
+    onStarted: write("y\n")
+    onExited: function(exitCode) {
+      if (exitCode !== 0) {
+        root.lastError = root.elideStatus(root._switchOutput || "Twingate account switch failed")
+        root.actionStatus = root.lastError
+        actionStatusTimer.restart()
+      } else {
         root.lastError = ""
         root.actionStatus = ""
       }
