@@ -25,7 +25,8 @@ AUR package.
 - Right-click the bar icon to toggle without opening the panel.
 - The **ACCOUNT** section shows your logged-in accounts (email and network),
   with the current account in bold and labelled **Current**. Click another
-  account to switch to it, use its log-out button to remove it, or use the
+  account and confirm to switch to it; switching automatically connects to
+  that network. Use its log-out button to remove it, or use the
   **Add account** row to log in — it opens your browser to finish
   authentication after you type your network name.
 - The **RESOURCES** section lists your authorized resources while connected,

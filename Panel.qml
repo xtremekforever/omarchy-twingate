@@ -18,6 +18,7 @@ Panel {
   property bool cursorActive: false
   property bool loginPromptOpen: false
   property string loginNetworkText: ""
+  property var accountToSwitch: null
   property int phraseIndex: 0
   readonly property var activePhrases: [
     "Encrypting connections",
@@ -61,6 +62,22 @@ Panel {
     loginPromptOpen = false
     loginNetworkText = ""
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
+  function requestAccountSwitch(account) {
+    if (!account || account.current || twingate.busy) return
+    accountToSwitch = account
+  }
+
+  function confirmAccountSwitch() {
+    if (!accountToSwitch) return
+    var account = accountToSwitch
+    accountToSwitch = null
+    twingate.switchAccount(account)
+  }
+
+  function cancelAccountSwitch() {
+    accountToSwitch = null
   }
 
   function submitLogin() {
@@ -115,7 +132,7 @@ Panel {
     if (focusSection === "header") twingate.toggle()
     else if (focusSection === "accounts") {
       var a = selectedAccount()
-      if (a && !a.current && !twingate.busy) twingate.switchAccount(a)
+      if (a && !a.current && !twingate.busy) root.requestAccountSwitch(a)
     }
     else if (focusSection === "login") root.openLoginPrompt()
     else if (focusSection === "resources") { var r = selectedResource(); if (r) twingate.copyToClipboard(r.address) }
@@ -165,6 +182,7 @@ Panel {
   onOpenedChanged: if (opened) {
     cursorActive = false
     loginPromptOpen = false
+    accountToSwitch = null
     if (panelFlick) panelFlick.contentY = 0
     twingate.refresh()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -235,11 +253,21 @@ Panel {
         if (!root.cursorActive) { root.cursorActive = true; return }
         root.moveCursor(dx, dy)
       }
-      onActivateRequested: if (root.cursorActive) root.activateCursor()
-      onCloseRequested: root.close()
+      onActivateRequested: {
+        if (root.accountToSwitch) root.confirmAccountSwitch()
+        else if (root.cursorActive) root.activateCursor()
+      }
+      onCloseRequested: {
+        if (root.accountToSwitch) root.cancelAccountSwitch()
+        else root.close()
+      }
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(t) {
-        if (t === "t" || t === "T") twingate.toggle()
+        if (root.accountToSwitch) {
+          if (t === "y" || t === "Y") root.confirmAccountSwitch()
+          else if (t === "n" || t === "N") root.cancelAccountSwitch()
+        }
+        else if (t === "t" || t === "T") twingate.toggle()
         else if (t === "r" || t === "R") twingate.refresh()
         else if (t === "l" || t === "L") root.openLoginPrompt()
       }
@@ -369,6 +397,44 @@ Panel {
                   width: accountColumn.width
                   account: modelData
                   rowIndex: index
+                }
+              }
+            }
+
+            Column {
+              visible: !!root.accountToSwitch
+              width: parent.width
+              spacing: Style.space(6)
+
+              Text {
+                width: parent.width
+                text: root.accountToSwitch
+                  ? "Switching accounts will automatically connect you to " + String(root.accountToSwitch.networkUrl || root.accountToSwitch.network || "this network") + ". Continue?"
+                  : ""
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                wrapMode: Text.WordWrap
+                textFormat: Text.PlainText
+              }
+
+              Row {
+                spacing: Style.space(12)
+
+                Text {
+                  text: "Yes (Y)"
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.confirmAccountSwitch() }
+                }
+
+                Text {
+                  text: "No (N)"
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.cancelAccountSwitch() }
                 }
               }
             }
@@ -548,7 +614,7 @@ Panel {
       hoverEnabled: true
       cursorShape: !accountRow.current && !twingate.busy ? Qt.PointingHandCursor : Qt.ArrowCursor
       onEntered: root.setAccountCursor(accountRow.rowIndex)
-      onClicked: if (!accountRow.current && !twingate.busy) twingate.switchAccount(accountRow.account)
+      onClicked: if (!accountRow.current && !twingate.busy) root.requestAccountSwitch(accountRow.account)
     }
 
     RowLayout {
